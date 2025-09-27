@@ -142,7 +142,7 @@ fetch_and_format_tags() {
     
     # Also provide a copyable version without colors
     print_color $BLUE "=== COPYABLE FORMAT (without colors) ==="
-    echo "TAGS=("
+    echo "COMMON_TAGS=("
     
     while IFS=$'\t' read -r key value; do
         if [ -n "$key" ] && [ -n "$value" ]; then
