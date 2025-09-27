@@ -293,6 +293,67 @@ check_load_balancers() {
     return $([ "$found_untagged" = true ] && echo 0 || echo 1)
 }
 
+# Function to find untagged S3 buckets
+check_s3_buckets() {
+    local tag_key=$1
+    local tag_value=$2
+    local found_untagged=false
+    
+    if [ "$OUTPUT_FORMAT" != "csv" ]; then
+        print_color $BLUE "Checking S3 Buckets..."
+    fi
+    
+    # Get all S3 buckets
+    local buckets=$(aws s3api list-buckets \
+        --profile "$AWS_PROFILE" \
+        --query 'Buckets[].[Name,CreationDate]' \
+        --output json 2>/dev/null)
+    
+    if [ $? -eq 0 ] && [ "$buckets" != "[]" ]; then
+        echo "$buckets" | jq -r '.[] | @base64' | while IFS= read -r encoded_bucket; do
+            local bucket_data=$(echo "$encoded_bucket" | base64 --decode)
+            local bucket_name=$(echo "$bucket_data" | jq -r '.[0]')
+            local creation_date=$(echo "$bucket_data" | jq -r '.[1]')
+            
+            # Get bucket location (region)
+            local bucket_region=$(aws s3api get-bucket-location \
+                --profile "$AWS_PROFILE" \
+                --bucket "$bucket_name" \
+                --query 'LocationConstraint' \
+                --output text 2>/dev/null)
+            
+            # Handle default region (us-east-1 returns None/null)
+            if [ "$bucket_region" = "None" ] || [ "$bucket_region" = "null" ]; then
+                bucket_region="us-east-1"
+            fi
+            
+            # Skip buckets not in the specified region (if region filtering is desired)
+            # Note: S3 is global, but buckets have regions. You might want to check all buckets
+            # regardless of region, or add a flag to control this behavior
+            
+            # Get tags for this bucket
+            local tags=$(aws s3api get-bucket-tagging \
+                --profile "$AWS_PROFILE" \
+                --bucket "$bucket_name" \
+                --query 'TagSet' \
+                --output json 2>/dev/null)
+            
+            # Handle case where bucket has no tags (command fails)
+            if [ $? -ne 0 ]; then
+                tags="[]"
+            fi
+            
+            if ! has_required_tag "$tags" "$tag_key" "$tag_value"; then
+                local bucket_details="${bucket_region}"
+                output_resource "$bucket_name" "s3-bucket" "active" "$bucket_details" "$bucket_name"
+                found_untagged=true
+            fi
+        done
+    fi
+    
+    return $([ "$found_untagged" = true ] && echo 0 || echo 1)
+}
+
 # Function to display help
 show_help() {
     cat << EOF
@@ -307,7 +368,7 @@ OPTIONS:
     -r, --region REGION     AWS region to use (default: $AWS_REGION)
     -o, --output FORMAT     Output format: table|csv|json (default: table)
     --resources TYPES       Comma-separated list of resource types to check
-                           Available: ec2,ebs,sg,vpc,subnet,elb (default: all)
+                           Available: ec2,ebs,sg,vpc,subnet,elb,s3 (default: all)
     -h, --help             Show this help message
 
 EXAMPLES:
@@ -324,6 +385,7 @@ SUPPORTED RESOURCE TYPES:
     - vpc: VPCs
     - subnet: Subnets
     - elb: Load Balancers (ALB/NLB)
+    - s3: S3 Buckets
 EOF
 }
 
@@ -331,7 +393,7 @@ EOF
 TAG_KEY="$DEFAULT_TAG_KEY"
 TAG_VALUE="$DEFAULT_TAG_VALUE"
 OUTPUT_FORMAT="table"
-# RESOURCE_TYPES="ec2,ebs,sg,vpc,subnet,elb"
+# RESOURCE_TYPES="ec2,ebs,sg,vpc,subnet,elb,s3"
 RESOURCE_TYPES="ec2"
 
 while [[ $# -gt 0 ]]; do
@@ -454,6 +516,11 @@ for resource_type in "${TYPES[@]}"; do
             ;;
         elb)
             if check_load_balancers "$TAG_KEY" "$TAG_VALUE"; then
+                ((total_untagged++))
+            fi
+            ;;
+        s3)
+            if check_s3_buckets "$TAG_KEY" "$TAG_VALUE"; then
                 ((total_untagged++))
             fi
             ;;
