@@ -2,3 +2,4 @@ ec2-tags.json
 to_tag.csv
 untagged-ec2.csv
 setup-datadog.sh
+aws/untagged-s3.csv

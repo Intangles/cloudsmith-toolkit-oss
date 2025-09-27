@@ -27,7 +27,7 @@ A comprehensive collection of DevOps utilities and scripts for managing cloud in
 
 The Cloudsmith Toolkit is designed to streamline cloud infrastructure management through automated scripts and utilities. It focuses on:
 
-- **AWS Resource Management**: Comprehensive tagging, monitoring, and resource discovery
+- **AWS Resource Management**: Comprehensive tagging, monitoring, and resource discovery (EC2, EBS, S3, VPC, etc.)
 - **Database Operations**: MongoDB replica set management and performance monitoring
 - **Infrastructure Monitoring**: Automated setup of monitoring agents and configurations
 - **Cost Optimization**: Spot fleet management and resource optimization tools
@@ -44,7 +44,7 @@ cloudsmith-toolkit/
 │   ├── spot-fleet-manager.sh              # Manage EC2 Spot Fleet requests
 │   ├── tag-ecr-repos.sh                   # Apply tags to ECR repositories
 │   ├── to_tag.csv                         # Resource list for bulk tagging
-│   ├── untagged-ec2.csv                   # Report of untagged EC2 instances
+│   ├── untagged-ec2.csv                   # Sample report of untagged resources
 │   └── update-aws-tags.sh                 # Bulk tag update utility
 ├── docs/                                   # Documentation
 │   └── README-pgbouncer-timescale-setup.md # PGBouncer setup guide
@@ -92,13 +92,19 @@ cloudsmith-toolkit/
 |--------|---------|--------------|
 | `fetch-aws-tags.sh` | Retrieve existing tags from AWS resources | • Auto-detects resource type<br>• Supports multiple resource types<br>• Colored output |
 | `update-aws-tags.sh` | Bulk update tags on AWS resources | • Batch processing<br>• Configurable tag templates<br>• Error handling |
-| `list-untagged-resources.sh` | Find resources missing required tags | • Multi-resource type scanning<br>• CSV export<br>• Filtering options |
+| `list-untagged-resources.sh` | Find resources missing required tags | • Multi-resource type scanning (EC2, EBS, S3, etc.)<br>• CSV export<br>• Filtering options<br>• S3 bucket support |
 | `tag-ecr-repos.sh` | Tag ECR repositories automatically | • Bulk ECR tagging<br>• Service-based naming<br>• Profile support |
 
 **Usage Example:**
 ```bash
 # Find all untagged EC2 instances
 ./aws/list-untagged-resources.sh --tag service --output csv
+
+# Find untagged S3 buckets
+./aws/list-untagged-resources.sh --tag Environment --resources s3
+
+# Find all untagged resources across multiple types
+./aws/list-untagged-resources.sh --tag service --resources ec2,s3,ebs
 
 # Tag multiple resources
 ./aws/update-aws-tags.sh i-1234567890abcdef0 vol-0987654321fedcba0
@@ -230,16 +236,19 @@ sudo yum install jq      # CentOS/RHEL
 ### Comprehensive AWS Resource Audit
 
 ```bash
-# 1. Find all untagged resources
+# 1. Find all untagged resources (including S3 buckets)
 ./aws/list-untagged-resources.sh --output csv > audit_report.csv
 
-# 2. Get detailed information about specific resources
+# 2. Specifically audit S3 buckets for compliance
+./aws/list-untagged-resources.sh --tag Environment --resources s3 --output table
+
+# 3. Get detailed information about specific resources
 ./aws/fetch-aws-tags.sh i-1234567890abcdef0
 
-# 3. Apply tags to resources
+# 4. Apply tags to resources
 ./aws/update-aws-tags.sh i-1234567890abcdef0 vol-0987654321fedcba0
 
-# 4. Tag all ECR repositories
+# 5. Tag all ECR repositories
 ./aws/tag-ecr-repos.sh --profile production
 ```
 
@@ -275,6 +284,7 @@ Ensure your AWS user/role has appropriate permissions:
 - EC2: `DescribeInstances`, `DescribeTags`, `CreateTags`
 - ECR: `DescribeRepositories`, `TagResource`
 - EBS: `DescribeVolumes`
+- S3: `ListAllMyBuckets`, `GetBucketTagging`, `PutBucketTagging`
 
 ## 🤝 Contributing
 
