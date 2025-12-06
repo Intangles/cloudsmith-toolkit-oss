@@ -35,26 +35,29 @@ AWS_REGION="ap-south-1"  # Change this to your preferred region
     # "Key=int:meta@lifecycle,Value=temporary"
 # )
 COMMON_TAGS=(
-    "Key=Name,Value=aedes-mqtt-ami-3rdSep2025"
+    "Key=Name,Value=mongo-obd-org-5.0-graviton-01-new"
     "Key=env,Value=prod"
-    "Key=int:meta@tagged,Value=true"
-    "Key=int:app@feature,Value=raw-data"
+    "Key=int:app@feature,Value=vehicle-health"
     "Key=int:app@nature,Value=shared"
     "Key=int:app@project,Value=default"
-    "Key=int:app@purpose,Value=auto-scaling"
-    "Key=int:app@service,Value=device-msg-broker"
+    "Key=int:app@purpose,Value=warehouse"
+    "Key=int:app@service,Value=database"
+    "Key=int:ha@role,Value=datanode"
+    "Key=int:infra@db,Value=obd-core"
     "Key=int:infra@nature,Value=primary"
     "Key=int:infra@setup,Value=self-managed"
-    "Key=int:infra@tech,Value=MQTT"
+    "Key=int:infra@tech,Value=mongodb"
+    "Key=int:meta@tagged,Value=true"
     "Key=int:org@bu,Value=engineering"
     "Key=int:org@owner,Value=engineering"
     "Key=int:org@team,Value=infra-engineering"
     "Key=int:security@data-sensitivity,Value=private"
+    "Key=snapshot,Value=every-06hr-last-02"
 )
 
 # Volume-specific tags (applied only to volumes, snapshots)
 VOLUME_ONLY_TAGS=(
-    "Key=int:infra@fs,Value=root"
+    "Key=int:infra@fs,Value=data"
     # "Key=int:infra@fs,Value=data"
     # "Key=int:infra@fs,Value=wal-oplog"
     # "Key=int:storage@backup,Value=enabled"
