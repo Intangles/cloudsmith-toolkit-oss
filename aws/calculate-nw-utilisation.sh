@@ -52,12 +52,12 @@ Output Columns:
     - InstanceId: EC2 instance ID
     - InstanceName: Name tag of the instance
     - InstanceType: EC2 instance type
-    - NetworkIn_Avg_Bytes: Average bytes received (5m averaged)
-    - NetworkIn_Min_Bytes: Minimum bytes received
-    - NetworkIn_Max_Bytes: Maximum bytes received
-    - NetworkOut_Avg_Bytes: Average bytes sent (5m averaged)
-    - NetworkOut_Min_Bytes: Minimum bytes sent
-    - NetworkOut_Max_Bytes: Maximum bytes sent
+    - NetworkIn_Avg_MB: Average MB received (5m averaged)
+    - NetworkIn_Min_MB: Minimum MB received
+    - NetworkIn_Max_MB: Maximum MB received
+    - NetworkOut_Avg_MB: Average MB sent (5m averaged)
+    - NetworkOut_Min_MB: Minimum MB sent
+    - NetworkOut_Max_MB: Maximum MB sent
     - NetworkIn_Avg_Mbps: Average ingress in Mbps
     - NetworkOut_Avg_Mbps: Average egress in Mbps
 
@@ -196,6 +196,13 @@ calculate_aggregated_metrics() {
     '
 }
 
+# Function to convert bytes to MB
+bytes_to_mb() {
+    local bytes="$1"
+    # bytes / 1024 / 1024 = MB
+    echo "scale=4; $bytes / 1024 / 1024" | bc 2>/dev/null || echo "0"
+}
+
 # Function to convert bytes to Mbps (for 5-minute period)
 bytes_to_mbps() {
     local bytes="$1"
@@ -206,7 +213,7 @@ bytes_to_mbps() {
 
 # Main function to generate the report
 generate_report() {
-    local csv_header="InstanceId,InstanceName,InstanceType,NetworkIn_Avg_Bytes,NetworkIn_Min_Bytes,NetworkIn_Max_Bytes,NetworkOut_Avg_Bytes,NetworkOut_Min_Bytes,NetworkOut_Max_Bytes,NetworkIn_Avg_Mbps,NetworkOut_Avg_Mbps"
+    local csv_header="InstanceId,InstanceName,InstanceType,NetworkIn_Avg_MB,NetworkIn_Min_MB,NetworkIn_Max_MB,NetworkOut_Avg_MB,NetworkOut_Min_MB,NetworkOut_Max_MB,NetworkIn_Avg_Mbps,NetworkOut_Avg_Mbps"
     
     # Output header
     if [[ -n "$OUTPUT_FILE" ]]; then
@@ -250,19 +257,28 @@ generate_report() {
         local network_out_stats
         network_out_stats=$(calculate_aggregated_metrics "$network_out_json")
         
-        # Parse the stats
+        # Parse the stats (in bytes)
+        local in_avg_bytes in_min_bytes in_max_bytes out_avg_bytes out_min_bytes out_max_bytes
+        in_avg_bytes=$(echo "$network_in_stats" | cut -f1)
+        in_min_bytes=$(echo "$network_in_stats" | cut -f2)
+        in_max_bytes=$(echo "$network_in_stats" | cut -f3)
+        out_avg_bytes=$(echo "$network_out_stats" | cut -f1)
+        out_min_bytes=$(echo "$network_out_stats" | cut -f2)
+        out_max_bytes=$(echo "$network_out_stats" | cut -f3)
+        
+        # Convert to MB
         local in_avg in_min in_max out_avg out_min out_max
-        in_avg=$(echo "$network_in_stats" | cut -f1)
-        in_min=$(echo "$network_in_stats" | cut -f2)
-        in_max=$(echo "$network_in_stats" | cut -f3)
-        out_avg=$(echo "$network_out_stats" | cut -f1)
-        out_min=$(echo "$network_out_stats" | cut -f2)
-        out_max=$(echo "$network_out_stats" | cut -f3)
+        in_avg=$(bytes_to_mb "${in_avg_bytes:-0}")
+        in_min=$(bytes_to_mb "${in_min_bytes:-0}")
+        in_max=$(bytes_to_mb "${in_max_bytes:-0}")
+        out_avg=$(bytes_to_mb "${out_avg_bytes:-0}")
+        out_min=$(bytes_to_mb "${out_min_bytes:-0}")
+        out_max=$(bytes_to_mb "${out_max_bytes:-0}")
         
         # Calculate Mbps for average values
         local in_avg_mbps out_avg_mbps
-        in_avg_mbps=$(bytes_to_mbps "${in_avg:-0}")
-        out_avg_mbps=$(bytes_to_mbps "${out_avg:-0}")
+        in_avg_mbps=$(bytes_to_mbps "${in_avg_bytes:-0}")
+        out_avg_mbps=$(bytes_to_mbps "${out_avg_bytes:-0}")
         
         # Format numbers (round to 2 decimal places)
         in_avg=$(printf "%.2f" "${in_avg:-0}" 2>/dev/null || echo "0")
